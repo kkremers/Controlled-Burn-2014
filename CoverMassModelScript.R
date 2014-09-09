@@ -49,17 +49,26 @@ Mass #check
 
 #calculate sums by GF
 NGF.sums = as.data.frame(tapply(dat$Cover, list(dat$NarGF, dat$Plot), sum)) 
-Mass.sumsNGF = tapply(Mass$Mass, list(Mass$NarGFStat, Mass$Plot), sum)
+Mass.sumsNGF = as.data.frame(tapply(Mass$Mass, list(Mass$NarGFStat, Mass$Plot), sum))
 BGF.sums = as.data.frame(tapply(dat$Cover, list(dat$BroGF, dat$Plot), sum)) 
-Mass.sumsBGF = tapply(Mass$Mass, list(Mass$BroGFStat, Mass$Plot), sum)
+Mass.sumsBGF = as.data.frame(tapply(Mass$Mass, list(Mass$BroGFStat, Mass$Plot), sum))
+
+
+NGF.sums = NGF.sums[complete.cases(NGF.sums),] #remove rows with NAs
+BGF.sums = BGF.sums[complete.cases(BGF.sums),] #remove rows with NAs
+Mass.sumsNGF = Mass.sumsNGF[complete.cases(Mass.sumsNGF),] #remove rows with NAs
+Mass.sumsBGF = Mass.sumsBGF[complete.cases(Mass.sumsBGF),] #remove rows with NAs
+NGF.sums=NGF.sums[c(-5, -11),]
+BGF.sums=BGF.sums[c(-2, -4),]
+
 
 #create vectors for final tables
 
-NGFStat = rep(c("DeciduousA", "DeciduousD", "EvergreenA", "EvergreenD", "ForbA", "GraminoidA", "GraminoidD", "LichenA", "LitterD", "MossA"), 3)
-BGFStat1 = rep(c("ShrubA", "ShrubD", "ShrubA", "ShrubD", "ForbA", "GraminoidA", "GraminoidD", "BryophyteA", "LitterD", "BryophyteA"), 3)
+NGFStat = rep(c("DeciduousA", "EvergreenA", "EvergreenD", "ForbA", "GraminoidA", "GraminoidD", "LichenA", "LitterD", "MossA"), 3)
+BGFStat1 = rep(c("ShrubA", "ShrubA", "ShrubD", "ForbA", "GraminoidA", "GraminoidD", "BryophyteA", "LitterD", "BryophyteA"), 3)
 BGFStat2 = rep(c("BryophyteA", "ForbA", "GraminoidA", "GraminoidD", "LitterD", "ShrubA", "ShrubD"))
-NGF = rep(c("Deciduous", "Deciduous", "Evergreen", "Evergreen", "Forb", "Graminoid", "Graminoid", "Lichen", "Litter", "Moss"), 3)
-BGF1 = rep(c("Shrub", "Shrub", "Shrub", "Shrub", "Forb", "Graminoid", "Graminoid", "Bryophyte", "Litter", "Bryophyte"), 3)
+NGF = rep(c("Deciduous", "Evergreen", "Evergreen", "Forb", "Graminoid", "Graminoid", "Lichen", "Litter", "Moss"), 3)
+BGF1 = rep(c("Shrub", "Shrub", "Shrub", "Forb", "Graminoid", "Graminoid", "Bryophyte", "Litter", "Bryophyte"), 3)
 BGF2 = rep(c("Bryophyte", "Forb", "Graminoid", "Graminoid", "Litter", "Shrub", "Shrub"))
 NGF.rows= c(NGF.sums[,1], NGF.sums[,2], NGF.sums[,3])
 BGF.rows1= c(NGF.sums[,1], NGF.sums[,2], NGF.sums[,3])
@@ -67,7 +76,7 @@ BGF.rows2= c(BGF.sums[,1], BGF.sums[,2], BGF.sums[,3])
 NGFmass.rows = c(Mass.sumsNGF[,1],Mass.sumsNGF[,2],Mass.sumsNGF[,3])
 BGFmass.rows1 = c(Mass.sumsNGF[,1],Mass.sumsNGF[,2],Mass.sumsNGF[,3])
 BGFmass.rows2 = c(Mass.sumsBGF[,1],Mass.sumsBGF[,2],Mass.sumsBGF[,3])
-Plots = rep(c(1, 2, 3), c(10, 10, 10)) #for NGF and BGF1
+Plots = rep(c(1, 2, 3), c(9, 9, 9)) #for NGF and BGF1
 Plots2 = rep(c(1, 2, 3), c(7, 7, 7))
 
 
@@ -81,9 +90,6 @@ colnames(CoverByBGF1) = c("Plot", "BGF", "BGFStat", "Cover", "Mass")
 CoverByBGF2 = data.frame(Plots2, BGF2, BGFStat2, BGF.rows2, BGFmass.rows2)
 colnames(CoverByBGF2) = c("Plot", "BGF", "BGFStat", "Cover", "Mass")
 
-CoverByNGF = CoverByNGF[complete.cases(CoverByNGF),] #remove rows with NAs
-CoverByBGF1 = CoverByBGF1[complete.cases(CoverByBGF1),] #remove rows with NAs
-CoverByBGF2 = CoverByBGF2[complete.cases(CoverByBGF2),] #remove rows with NAs
 
 #check final tables
 head(CoverByNGF)
@@ -99,26 +105,25 @@ head(CoverByBGF2)
 growthform = as.vector(unique(CoverByNGF$NGF))
 N = length(growthform)
 
-ParamsNGF = data.frame(NarrowGF = numeric(N), Slope = numeric(N), Intercept = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N), SEint = numeric(N))
+ParamsNGF = data.frame(NarrowGF = numeric(N), Slope = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N))
 
 for (i in 1:N){
   
   growthform.i = growthform[i]
   data.i = subset(CoverByNGF, NGF == growthform.i)
   
-  model = lm(Cover ~ Mass, data = data.i)
+  model = lm(Cover ~ Mass + 0, data = data.i) #I am forcing the intercept to be 0 so that when I predict biomass, I won't get a negative number.
   
   n=length(data.i$Cover)
-  Slope=summary(model)$coefficients[2,1]
-  Intercept=summary(model)$coefficients[1,1]
+  Slope=summary(model)$coefficients[1,1]
   Rsquared=summary(model)$r.squared
   adjRsquared=summary(model)$adj.r.squared
-  pvalue=summary(model)$coefficients[2,4]
-  SEmass = summary(model)$coefficients[2,2]
-  SEint = summary(model)$coefficients[1,2]
+  pvalue=summary(model)$coefficients[1,4]
+  SEmass = summary(model)$coefficients[1,2]
+
 
   
-  ParamsNGF[i,] = c(growthform.i, Slope, Intercept, Rsquared, adjRsquared, pvalue, n, SEmass, SEint)
+  ParamsNGF[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue, n, SEmass)
     
 }
 
@@ -128,25 +133,23 @@ for (i in 1:N){
 growthform = as.vector(unique(CoverByBGF1$BGF))
 N = length(growthform)
 
-ParamsBGF1 = data.frame(NarrowGF = numeric(N), Slope = numeric(N), Intercept = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N), SEint = numeric(N))
+ParamsBGF1 = data.frame(BroadGF1 = numeric(N), Slope = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N))
 
 for (i in 1:N){
   
   growthform.i = growthform[i]
   data.i = subset(CoverByBGF1, BGF == growthform.i)
   
-  model = lm(Cover ~ Mass, data = data.i)
+  model = lm(Cover ~ Mass + 0, data = data.i)
   
   n=length(data.i$Cover)
-  Slope=summary(model)$coefficients[2,1]
-  Intercept=summary(model)$coefficients[1,1]
+  Slope=summary(model)$coefficients[1,1]
   Rsquared=summary(model)$r.squared
   adjRsquared=summary(model)$adj.r.squared
-  pvalue=summary(model)$coefficients[2,4]
-  SEmass = summary(model)$coefficients[2,2]
-  SEint = summary(model)$coefficients[1,2]
+  pvalue=summary(model)$coefficients[1,4]
+  SEmass = summary(model)$coefficients[1,2]
   
-  ParamsBGF1[i,] = c(growthform.i, Slope, Intercept, Rsquared, adjRsquared, pvalue,n, SEmass, SEint)
+  ParamsBGF1[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue,n, SEmass)
   
 }
 
@@ -155,26 +158,24 @@ for (i in 1:N){
 growthform = as.vector(unique(CoverByBGF2$BGF))
 N = length(growthform)
 
-ParamsBGF2 = data.frame(NarrowGF = numeric(N), Slope = numeric(N), Intercept = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N), SEint = numeric(N))
+ParamsBGF2 = data.frame(BroadGF2 = numeric(N), Slope = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N))
 
 for (i in 1:N){
   
   growthform.i = growthform[i]
   data.i = subset(CoverByBGF2, BGF == growthform.i)
   
-  model = lm(Cover ~ Mass, data = data.i)
+  model = lm(Cover ~ Mass + 0, data = data.i)
   
   n=length(data.i$Cover)
-  Slope=summary(model)$coefficients[2,1]
-  Intercept=summary(model)$coefficients[1,1]
+  Slope=summary(model)$coefficients[1,1]
   Rsquared=summary(model)$r.squared
   adjRsquared=summary(model)$adj.r.squared
-  pvalue=summary(model)$coefficients[2,4]
-  SEmass = summary(model)$coefficients[2,2]
-  SEint = summary(model)$coefficients[1,2]
+  pvalue=summary(model)$coefficients[1,4]
+  SEmass = summary(model)$coefficients[1,2]
   
   
-  ParamsBGF2[i,] = c(growthform.i, Slope, Intercept, Rsquared, adjRsquared, pvalue,n, SEmass, SEint)
+  ParamsBGF2[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue,n, SEmass)
   
 }
 
