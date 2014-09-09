@@ -1,0 +1,334 @@
+#Kelseyann Kremers
+#Rocha lab, University of Notre Dame
+#kkremers@nd.edu
+
+############pointframe data analysis########################
+
+###########controls - biomass and cover relationships#######
+
+
+##STEP 1: create tables with mass and cover by growth form
+
+ctrl=read.csv(file=file.choose()) #load cover data
+head(ctrl)
+SppStat = paste(ctrl$Spp, ctrl$Stat, sep="")
+ctrl = data.frame(ctrl, SppStat)
+plots = unique(ctrl$Plot)  #list unique plots
+data1 = array(1, c(15, 4, 3)) #create empty array
+dim(data1) #check dimensions
+
+for (i in 1:3){ #run for loop to calculate cover for each species in each plot
+  plot.i = plots[i]
+  data = subset(ctrl, Plot == plot.i)
+  counts = as.data.frame(table(data$SppStat))
+  cover = counts$Freq/sum(counts$Freq)
+  plot.ii = rep(i, length(cover))
+  spp=as.vector(counts$Var1)
+  data1[,1,i] = plot.ii
+  data1[,2,i] = spp
+  data1[,3,i] = counts$Freq
+  data1[,4,i] = cover
+}
+  
+dat = data.frame(rbind(data1[,,1], data1[,,2], data1[,,3])) #changing format
+colnames(dat) = c("Plot", "SppStat", "Freq", "Cover") #change column names
+head(dat) #check data
+class = read.csv(file=file.choose()) #import GF information
+NarGF = rep(NA, 45) #create empty vector for GF information to go in
+BroGF = rep(NA, 45) #create empty vector for GF information to go in
+dat = data.frame(dat, NarGF, BroGF) #add empty column to existing dat table
+dat$NarGF <- class$NarGFStat[match(dat$SppStat, class$SppStat)] #add GF values to table by matching the SppStat column
+dat$BroGF <- class$BroGFStat[match(dat$SppStat, class$SppStat)] #add GF values to table by matching the SppStat column
+#the above works like vlookup in excel
+
+dat$Cover = as.numeric(as.character(dat$Cover)) #convert to numeric for calculations
+head(dat) #check data
+
+Mass = read.csv(file=file.choose()) #upload mass data
+Mass #check
+
+#calculate sums by GF
+NGF.sums = as.data.frame(tapply(dat$Cover, list(dat$NarGF, dat$Plot), sum)) 
+Mass.sumsNGF = tapply(Mass$Mass, list(Mass$NarGFStat, Mass$Plot), sum)
+BGF.sums = as.data.frame(tapply(dat$Cover, list(dat$BroGF, dat$Plot), sum)) 
+Mass.sumsBGF = tapply(Mass$Mass, list(Mass$BroGFStat, Mass$Plot), sum)
+
+#create vectors for final tables
+
+NGFStat = rep(c("DeciduousA", "DeciduousD", "EvergreenA", "EvergreenD", "ForbA", "GraminoidA", "GraminoidD", "LichenA", "LitterD", "MossA"), 3)
+BGFStat1 = rep(c("ShrubA", "ShrubD", "ShrubA", "ShrubD", "ForbA", "GraminoidA", "GraminoidD", "BryophyteA", "LitterD", "BryophyteA"), 3)
+BGFStat2 = rep(c("BryophyteA", "ForbA", "GraminoidA", "GraminoidD", "LitterD", "ShrubA", "ShrubD"))
+NGF = rep(c("Deciduous", "Deciduous", "Evergreen", "Evergreen", "Forb", "Graminoid", "Graminoid", "Lichen", "Litter", "Moss"), 3)
+BGF1 = rep(c("Shrub", "Shrub", "Shrub", "Shrub", "Forb", "Graminoid", "Graminoid", "Bryophyte", "Litter", "Bryophyte"), 3)
+BGF2 = rep(c("Bryophyte", "Forb", "Graminoid", "Graminoid", "Litter", "Shrub", "Shrub"))
+NGF.rows= c(NGF.sums[,1], NGF.sums[,2], NGF.sums[,3])
+BGF.rows1= c(NGF.sums[,1], NGF.sums[,2], NGF.sums[,3])
+BGF.rows2= c(BGF.sums[,1], BGF.sums[,2], BGF.sums[,3])
+NGFmass.rows = c(Mass.sumsNGF[,1],Mass.sumsNGF[,2],Mass.sumsNGF[,3])
+BGFmass.rows1 = c(Mass.sumsNGF[,1],Mass.sumsNGF[,2],Mass.sumsNGF[,3])
+BGFmass.rows2 = c(Mass.sumsBGF[,1],Mass.sumsBGF[,2],Mass.sumsBGF[,3])
+Plots = rep(c(1, 2, 3), c(10, 10, 10)) #for NGF and BGF1
+Plots2 = rep(c(1, 2, 3), c(7, 7, 7))
+
+
+#create final tables including cover and mass
+CoverByNGF = data.frame(Plots, NGF, NGFStat, NGF.rows, NGFmass.rows)
+colnames(CoverByNGF) = c("Plot", "NGF", "NGFStat", "Cover", "Mass")
+
+CoverByBGF1 = data.frame(Plots, BGF1, BGFStat1, BGF.rows1, BGFmass.rows1)
+colnames(CoverByBGF1) = c("Plot", "BGF", "BGFStat", "Cover", "Mass")
+
+CoverByBGF2 = data.frame(Plots2, BGF2, BGFStat2, BGF.rows2, BGFmass.rows2)
+colnames(CoverByBGF2) = c("Plot", "BGF", "BGFStat", "Cover", "Mass")
+
+CoverByNGF = CoverByNGF[complete.cases(CoverByNGF),] #remove rows with NAs
+CoverByBGF1 = CoverByBGF1[complete.cases(CoverByBGF1),] #remove rows with NAs
+CoverByBGF2 = CoverByBGF2[complete.cases(CoverByBGF2),] #remove rows with NAs
+
+#check final tables
+head(CoverByNGF)
+head(CoverByBGF1)
+head(CoverByBGF2)
+
+
+##STEP 2: linear regressions to predict biomass
+
+#need to run a loop that will do a regression for each growth form
+
+#start with Narrow Growth Form
+growthform = as.vector(unique(CoverByNGF$NGF))
+N = length(growthform)
+
+ParamsNGF = data.frame(NarrowGF = numeric(N), Slope = numeric(N), Intercept = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N), SEint = numeric(N))
+
+for (i in 1:N){
+  
+  growthform.i = growthform[i]
+  data.i = subset(CoverByNGF, NGF == growthform.i)
+  
+  model = lm(Cover ~ Mass, data = data.i)
+  
+  n=length(data.i$Cover)
+  Slope=summary(model)$coefficients[2,1]
+  Intercept=summary(model)$coefficients[1,1]
+  Rsquared=summary(model)$r.squared
+  adjRsquared=summary(model)$adj.r.squared
+  pvalue=summary(model)$coefficients[2,4]
+  SEmass = summary(model)$coefficients[2,2]
+  SEint = summary(model)$coefficients[1,2]
+
+  
+  ParamsNGF[i,] = c(growthform.i, Slope, Intercept, Rsquared, adjRsquared, pvalue, n, SEmass, SEint)
+    
+}
+
+
+
+#Broad Growth Form 1
+growthform = as.vector(unique(CoverByBGF1$BGF))
+N = length(growthform)
+
+ParamsBGF1 = data.frame(NarrowGF = numeric(N), Slope = numeric(N), Intercept = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N), SEint = numeric(N))
+
+for (i in 1:N){
+  
+  growthform.i = growthform[i]
+  data.i = subset(CoverByBGF1, BGF == growthform.i)
+  
+  model = lm(Cover ~ Mass, data = data.i)
+  
+  n=length(data.i$Cover)
+  Slope=summary(model)$coefficients[2,1]
+  Intercept=summary(model)$coefficients[1,1]
+  Rsquared=summary(model)$r.squared
+  adjRsquared=summary(model)$adj.r.squared
+  pvalue=summary(model)$coefficients[2,4]
+  SEmass = summary(model)$coefficients[2,2]
+  SEint = summary(model)$coefficients[1,2]
+  
+  ParamsBGF1[i,] = c(growthform.i, Slope, Intercept, Rsquared, adjRsquared, pvalue,n, SEmass, SEint)
+  
+}
+
+
+#Broad Growth Form 2
+growthform = as.vector(unique(CoverByBGF2$BGF))
+N = length(growthform)
+
+ParamsBGF2 = data.frame(NarrowGF = numeric(N), Slope = numeric(N), Intercept = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N), SEint = numeric(N))
+
+for (i in 1:N){
+  
+  growthform.i = growthform[i]
+  data.i = subset(CoverByBGF2, BGF == growthform.i)
+  
+  model = lm(Cover ~ Mass, data = data.i)
+  
+  n=length(data.i$Cover)
+  Slope=summary(model)$coefficients[2,1]
+  Intercept=summary(model)$coefficients[1,1]
+  Rsquared=summary(model)$r.squared
+  adjRsquared=summary(model)$adj.r.squared
+  pvalue=summary(model)$coefficients[2,4]
+  SEmass = summary(model)$coefficients[2,2]
+  SEint = summary(model)$coefficients[1,2]
+  
+  
+  ParamsBGF2[i,] = c(growthform.i, Slope, Intercept, Rsquared, adjRsquared, pvalue,n, SEmass, SEint)
+  
+}
+
+#output all the parameter tables to csv files
+
+write.csv(ParamsNGF, "c:/Users/Rocha Lab/Desktop/Kelsey/StatsNGF.csv")
+write.csv(ParamsBGF1, "c:/Users/Rocha Lab/Desktop/Kelsey/StatsBGF1.csv")
+write.csv(ParamsBGF2, "c:/Users/Rocha Lab/Desktop/Kelsey/StatsBGF2.csv")
+
+
+
+#####Create plots###
+
+
+growthform = as.vector(unique(CoverByNGF$NGF))
+N = length(growthform)
+
+pdf("c:/Users/Rocha Lab/Desktop/Kelsey/CoverMassModels_NGF.pdf")
+
+
+for (i in 1:N){
+  
+  growthform.i = growthform[i]
+  data.i = subset(CoverByNGF, NGF == growthform.i)
+  
+  model = lm(Cover ~ Mass, data = data.i)
+  
+  adjRsquared=summary(model)$adj.r.squared
+  pvalue=summary(model)$coefficients[2,4]
+  
+  # predicts + interval
+  NewMass <- seq(min(data.i$Mass), max(data.i$Mass))
+  newdata = data.frame(Mass=NewMass)
+  Preds <- predict(model, newdata, interval = 'confidence')
+  
+  #plot
+  plot(data.i$Cover ~ data.i$Mass, main = growthform.i, xlab = "Mass", ylab = "Cover")
+  
+  # add fill
+  polygon(c(rev(NewMass), NewMass), c(rev(Preds[ ,3]), Preds[ ,2]), col = 'grey80', border = NA)
+  # model
+  abline(model)
+  #data points
+  points(data.i$Mass, data.i$Cover, pch = 16 )
+  # intervals
+  lines(NewMass, Preds[ ,3], lty = 'dashed', col = 'red')
+  lines(NewMass, Preds[ ,2], lty = 'dashed', col = 'red')
+  #legend
+  rp = vector('expression',2)
+  rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
+                     list(MYVALUE = format(adjRsquared,dig=2)))[2]
+  rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
+                     list(MYOTHERVALUE = format(pvalue, digits = 2)))[2]
+  legend('topleft', legend = rp, bty = 'n')
+  
+}
+
+dev.off()
+
+
+
+#BGF1
+growthform = as.vector(unique(CoverByBGF1$BGF))
+N = length(growthform)
+
+pdf("c:/Users/Rocha Lab/Desktop/Kelsey/CoverMassModels_BGF1.pdf")
+
+
+for (i in 1:N){
+  
+  growthform.i = growthform[i]
+  data.i = subset(CoverByBGF1, BGF == growthform.i)
+  
+  model = lm(Cover ~ Mass, data = data.i)
+  
+  adjRsquared=summary(model)$adj.r.squared
+  pvalue=summary(model)$coefficients[2,4]
+  
+  # predicts + interval
+  NewMass <- seq(min(data.i$Mass), max(data.i$Mass))
+  newdata = data.frame(Mass=NewMass)
+  Preds <- predict(model, newdata, interval = 'confidence')
+  
+  #plot
+  plot(data.i$Cover ~ data.i$Mass, main = growthform.i, xlab = "Mass", ylab = "Cover")
+  
+  # add fill
+  polygon(c(rev(NewMass), NewMass), c(rev(Preds[ ,3]), Preds[ ,2]), col = 'grey80', border = NA)
+  # model
+  abline(model)
+  #data points
+  points(data.i$Mass, data.i$Cover, pch = 16 )
+  # intervals
+  lines(NewMass, Preds[ ,3], lty = 'dashed', col = 'red')
+  lines(NewMass, Preds[ ,2], lty = 'dashed', col = 'red')
+  #legend
+  rp = vector('expression',2)
+  rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
+                     list(MYVALUE = format(adjRsquared,dig=2)))[2]
+  rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
+                     list(MYOTHERVALUE = format(pvalue, digits = 2)))[2]
+  legend('topleft', legend = rp, bty = 'n')
+  
+}
+
+dev.off()
+
+
+
+#BGF2
+growthform = as.vector(unique(CoverByBGF2$BGF))
+N = length(growthform)
+
+pdf("c:/Users/Rocha Lab/Desktop/Kelsey/CoverMassModels_BGF2.pdf")
+
+
+for (i in 1:N){
+  
+  growthform.i = growthform[i]
+  data.i = subset(CoverByBGF2, BGF == growthform.i)
+  
+  model = lm(Cover ~ Mass, data = data.i)
+  
+  adjRsquared=summary(model)$adj.r.squared
+  pvalue=summary(model)$coefficients[2,4]
+  
+  # predicts + interval
+  NewMass <- seq(min(data.i$Mass), max(data.i$Mass))
+  newdata = data.frame(Mass=NewMass)
+  Preds <- predict(model, newdata, interval = 'confidence')
+  
+  #plot
+  plot(data.i$Cover ~ data.i$Mass, main = growthform.i, xlab = "Mass", ylab = "Cover")
+  
+  # add fill
+  polygon(c(rev(NewMass), NewMass), c(rev(Preds[ ,3]), Preds[ ,2]), col = 'grey80', border = NA)
+  # model
+  abline(model)
+  #data points
+  points(data.i$Mass, data.i$Cover, pch = 16 )
+  # intervals
+  lines(NewMass, Preds[ ,3], lty = 'dashed', col = 'red')
+  lines(NewMass, Preds[ ,2], lty = 'dashed', col = 'red')
+  #legend
+  rp = vector('expression',2)
+  rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
+                     list(MYVALUE = format(adjRsquared,dig=2)))[2]
+  rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
+                     list(MYOTHERVALUE = format(pvalue, digits = 2)))[2]
+  legend('topleft', legend = rp, bty = 'n')
+  
+}
+
+dev.off()
+
+
+
