@@ -20,8 +20,10 @@ dim(data1) #check dimensions
 for (i in 1:3){ #run for loop to calculate cover for each species in each plot
   plot.i = plots[i]
   data = subset(ctrl, Plot == plot.i)
+  pts = unique(data$Coord)
+  numpts = length(pts)
   counts = as.data.frame(table(data$SppStat))
-  cover = counts$Freq/sum(counts$Freq)
+  cover = counts$Freq/numpts
   plot.ii = rep(i, length(cover))
   spp=as.vector(counts$Var1)
   data1[,1,i] = plot.ii
@@ -45,13 +47,13 @@ dat$Cover = as.numeric(as.character(dat$Cover)) #convert to numeric for calculat
 head(dat) #check data
 
 Mass = read.csv(file=file.choose()) #upload mass data
-Mass #check
+Mass #check, we want to use MASS PER METER SQUARED which is column 5 (Mass_m2)
 
 #calculate sums by GF
 NGF.sums = as.data.frame(tapply(dat$Cover, list(dat$NarGF, dat$Plot), sum)) 
-Mass.sumsNGF = as.data.frame(tapply(Mass$Mass, list(Mass$NarGFStat, Mass$Plot), sum))
+Mass.sumsNGF = as.data.frame(tapply(Mass$Mass_m2, list(Mass$NarGFStat, Mass$Plot), sum))
 BGF.sums = as.data.frame(tapply(dat$Cover, list(dat$BroGF, dat$Plot), sum)) 
-Mass.sumsBGF = as.data.frame(tapply(Mass$Mass, list(Mass$BroGFStat, Mass$Plot), sum))
+Mass.sumsBGF = as.data.frame(tapply(Mass$Mass_m2, list(Mass$BroGFStat, Mass$Plot), sum))
 
 
 NGF.sums = NGF.sums[complete.cases(NGF.sums),] #remove rows with NAs
@@ -67,17 +69,21 @@ BGF.sums=BGF.sums[c(-2, -4),]
 NGFStat = rep(c("DeciduousA", "EvergreenA", "EvergreenD", "ForbA", "GraminoidA", "GraminoidD", "LichenA", "LitterD", "MossA"), 3)
 BGFStat1 = rep(c("ShrubA", "ShrubA", "ShrubD", "ForbA", "GraminoidA", "GraminoidD", "BryophyteA", "LitterD", "BryophyteA"), 3)
 BGFStat2 = rep(c("BryophyteA", "ForbA", "GraminoidA", "GraminoidD", "LitterD", "ShrubA", "ShrubD"))
+LitGFStat = rep(c("ShrubA", "ShrubA", "LitterD", "ForbA", "GraminoidA", "LitterD", "BryophyteA", "LitterD", "BryophyteA"), 3)
 NGF = rep(c("Deciduous", "Evergreen", "Evergreen", "Forb", "Graminoid", "Graminoid", "Lichen", "Litter", "Moss"), 3)
 BGF1 = rep(c("Shrub", "Shrub", "Shrub", "Forb", "Graminoid", "Graminoid", "Bryophyte", "Litter", "Bryophyte"), 3)
 BGF2 = rep(c("Bryophyte", "Forb", "Graminoid", "Graminoid", "Litter", "Shrub", "Shrub"))
+LitGF = rep(c("Shrub", "Shrub", "Litter", "Forb", "Graminoid", "Litter", "Bryophyte", "Litter", "Bryophyte"), 3)
 NGF.rows= c(NGF.sums[,1], NGF.sums[,2], NGF.sums[,3])
 BGF.rows1= c(NGF.sums[,1], NGF.sums[,2], NGF.sums[,3])
 BGF.rows2= c(BGF.sums[,1], BGF.sums[,2], BGF.sums[,3])
+LitGF.rows= c(NGF.sums[,1], NGF.sums[,2], NGF.sums[,3])
 NGFmass.rows = c(Mass.sumsNGF[,1],Mass.sumsNGF[,2],Mass.sumsNGF[,3])
 BGFmass.rows1 = c(Mass.sumsNGF[,1],Mass.sumsNGF[,2],Mass.sumsNGF[,3])
 BGFmass.rows2 = c(Mass.sumsBGF[,1],Mass.sumsBGF[,2],Mass.sumsBGF[,3])
-Plots = rep(c(1, 2, 3), c(9, 9, 9)) #for NGF and BGF1
-Plots2 = rep(c(1, 2, 3), c(7, 7, 7))
+LitGFmass.rows = c(Mass.sumsNGF[,1],Mass.sumsNGF[,2],Mass.sumsNGF[,3])
+Plots = rep(c(1, 2, 3), c(9, 9, 9)) #for NGF, BGF1, and LitGF
+Plots2 = rep(c(1, 2, 3), c(7, 7, 7)) #for BGF2
 
 
 #create final tables including cover and mass
@@ -90,11 +96,15 @@ colnames(CoverByBGF1) = c("Plot", "BGF", "BGFStat", "Cover", "Mass")
 CoverByBGF2 = data.frame(Plots2, BGF2, BGFStat2, BGF.rows2, BGFmass.rows2)
 colnames(CoverByBGF2) = c("Plot", "BGF", "BGFStat", "Cover", "Mass")
 
+CoverByLitGF = data.frame(Plots, LitGF, LitGFStat, LitGF.rows, LitGFmass.rows)
+colnames(CoverByLitGF) = c("Plot", "BGF", "BGFStat", "Cover", "Mass")
+
 
 #check final tables
 head(CoverByNGF)
 head(CoverByBGF1)
 head(CoverByBGF2)
+head(CoverByLitGF)
 
 
 ##STEP 2: linear regressions to predict biomass
@@ -112,18 +122,18 @@ for (i in 1:N){
   growthform.i = growthform[i]
   data.i = subset(CoverByNGF, NGF == growthform.i)
   
-  model = lm(Cover ~ Mass + 0, data = data.i) #I am forcing the intercept to be 0 so that when I predict biomass, I won't get a negative number.
+  model = lm(Mass ~ Cover + 0, data = data.i) #I am forcing the intercept to be 0 so that when I predict biomass, I won't get a negative number.
   
   n=length(data.i$Cover)
   Slope=summary(model)$coefficients[1,1]
   Rsquared=summary(model)$r.squared
   adjRsquared=summary(model)$adj.r.squared
   pvalue=summary(model)$coefficients[1,4]
-  SEmass = summary(model)$coefficients[1,2]
+  SE = summary(model)$coefficients[1,2]
 
 
   
-  ParamsNGF[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue, n, SEmass)
+  ParamsNGF[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue, n, SE)
     
 }
 
@@ -140,16 +150,16 @@ for (i in 1:N){
   growthform.i = growthform[i]
   data.i = subset(CoverByBGF1, BGF == growthform.i)
   
-  model = lm(Cover ~ Mass + 0, data = data.i)
+  model = lm(Mass ~ Cover + 0, data = data.i)
   
   n=length(data.i$Cover)
   Slope=summary(model)$coefficients[1,1]
   Rsquared=summary(model)$r.squared
   adjRsquared=summary(model)$adj.r.squared
   pvalue=summary(model)$coefficients[1,4]
-  SEmass = summary(model)$coefficients[1,2]
+  SE = summary(model)$coefficients[1,2]
   
-  ParamsBGF1[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue,n, SEmass)
+  ParamsBGF1[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue,n, SE)
   
 }
 
@@ -165,31 +175,57 @@ for (i in 1:N){
   growthform.i = growthform[i]
   data.i = subset(CoverByBGF2, BGF == growthform.i)
   
-  model = lm(Cover ~ Mass + 0, data = data.i)
+  model = lm(Mass ~ Cover + 0, data = data.i)
   
   n=length(data.i$Cover)
   Slope=summary(model)$coefficients[1,1]
   Rsquared=summary(model)$r.squared
   adjRsquared=summary(model)$adj.r.squared
   pvalue=summary(model)$coefficients[1,4]
-  SEmass = summary(model)$coefficients[1,2]
+  SE = summary(model)$coefficients[1,2]
   
   
-  ParamsBGF2[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue,n, SEmass)
+  ParamsBGF2[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue,n, SE)
   
 }
+
+#Litter GF
+growthform = as.vector(unique(CoverByLitGF$BGF))
+N = length(growthform)
+
+ParamsLitGF = data.frame(BroadGF2 = numeric(N), Slope = numeric(N), Rsquared = numeric(N), adjRsquared = numeric(N), pvalue = numeric(N), n = numeric(N), SEmass = numeric(N))
+
+for (i in 1:N){
+  
+  growthform.i = growthform[i]
+  data.i = subset(CoverByLitGF, BGF == growthform.i)
+  
+  model = lm(Mass ~ Cover + 0, data = data.i)
+  
+  n=length(data.i$Cover)
+  Slope=summary(model)$coefficients[1,1]
+  Rsquared=summary(model)$r.squared
+  adjRsquared=summary(model)$adj.r.squared
+  pvalue=summary(model)$coefficients[1,4]
+  SE = summary(model)$coefficients[1,2]
+  
+  
+  ParamsLitGF[i,] = c(growthform.i, Slope, Rsquared, adjRsquared, pvalue,n, SE)
+  
+}
+
 
 #output all the parameter tables to csv files
 
 write.csv(ParamsNGF, "c:/Users/Rocha Lab/Desktop/Kelsey/StatsNGF.csv")
 write.csv(ParamsBGF1, "c:/Users/Rocha Lab/Desktop/Kelsey/StatsBGF1.csv")
 write.csv(ParamsBGF2, "c:/Users/Rocha Lab/Desktop/Kelsey/StatsBGF2.csv")
-
+write.csv(ParamsLitGF, "c:/Users/Rocha Lab/Desktop/Kelsey/StatsLitGF.csv")
 
 
 #####Create plots###
 
-
+#NGF
 growthform = as.vector(unique(CoverByNGF$NGF))
 N = length(growthform)
 
@@ -201,28 +237,28 @@ for (i in 1:N){
   growthform.i = growthform[i]
   data.i = subset(CoverByNGF, NGF == growthform.i)
   
-  model = lm(Cover ~ Mass + 0, data = data.i)
+  model = lm(Mass~Cover + 0, data = data.i)
   
   adjRsquared=summary(model)$adj.r.squared
   pvalue=summary(model)$coefficients[1,4]
-  
+
   # predicts + interval
-  NewMass <- seq(min(data.i$Mass), max(data.i$Mass))
-  newdata = data.frame(Mass=NewMass)
+  NewCover <- seq(min(data.i$Cover), max(data.i$Cover), length.out = length(data.i[,1]))
+  newdata = data.frame(Cover=NewCover)
   Preds <- predict(model, newdata, interval = 'confidence')
   
   #plot
-  plot(data.i$Cover ~ data.i$Mass, main = growthform.i, xlab = "Mass", ylab = "Cover")
+  plot(data.i$Mass ~ data.i$Cover, main = growthform.i, xlab = "Cover", ylab = "Mass")
   
   # add fill
-  polygon(c(rev(NewMass), NewMass), c(rev(Preds[ ,3]), Preds[ ,2]), col = 'grey80', border = NA)
+  polygon(c(NewCover, rev(NewCover)), c(Preds[ ,2], rev(Preds[ ,3])), col = 'grey80', border = NA)
   # model
   abline(model)
   #data points
-  points(data.i$Mass, data.i$Cover, pch = 16 )
+  points(data.i$Cover, data.i$Mass, pch = 16 )
   # intervals
-  lines(NewMass, Preds[ ,3], lty = 'dashed', col = 'red')
-  lines(NewMass, Preds[ ,2], lty = 'dashed', col = 'red')
+  lines(NewCover, Preds[ ,3], lty = 'dashed', col = 'red')
+  lines(NewCover, Preds[ ,2], lty = 'dashed', col = 'red')
   #legend
   rp = vector('expression',2)
   rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
@@ -249,28 +285,28 @@ for (i in 1:N){
   growthform.i = growthform[i]
   data.i = subset(CoverByBGF1, BGF == growthform.i)
   
-  model = lm(Cover ~ Mass + 0, data = data.i)
+  model = lm(Mass~Cover + 0, data = data.i)
   
   adjRsquared=summary(model)$adj.r.squared
   pvalue=summary(model)$coefficients[1,4]
   
   # predicts + interval
-  NewMass <- seq(min(data.i$Mass), max(data.i$Mass))
-  newdata = data.frame(Mass=NewMass)
+  NewCover <- seq(min(data.i$Cover), max(data.i$Cover), length.out = length(data.i[,1]))
+  newdata = data.frame(Cover=NewCover)
   Preds <- predict(model, newdata, interval = 'confidence')
   
   #plot
-  plot(data.i$Cover ~ data.i$Mass, main = growthform.i, xlab = "Mass", ylab = "Cover")
+  plot(data.i$Mass ~ data.i$Cover, main = growthform.i, xlab = "Cover", ylab = "Mass")
   
   # add fill
-  polygon(c(rev(NewMass), NewMass), c(rev(Preds[ ,3]), Preds[ ,2]), col = 'grey80', border = NA)
+  polygon(c(NewCover, rev(NewCover)), c(Preds[ ,2], rev(Preds[ ,3])), col = 'grey80', border = NA)
   # model
   abline(model)
   #data points
-  points(data.i$Mass, data.i$Cover, pch = 16 )
+  points(data.i$Cover, data.i$Mass, pch = 16 )
   # intervals
-  lines(NewMass, Preds[ ,3], lty = 'dashed', col = 'red')
-  lines(NewMass, Preds[ ,2], lty = 'dashed', col = 'red')
+  lines(NewCover, Preds[ ,3], lty = 'dashed', col = 'red')
+  lines(NewCover, Preds[ ,2], lty = 'dashed', col = 'red')
   #legend
   rp = vector('expression',2)
   rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
@@ -297,28 +333,28 @@ for (i in 1:N){
   growthform.i = growthform[i]
   data.i = subset(CoverByBGF2, BGF == growthform.i)
   
-  model = lm(Cover ~ Mass + 0, data = data.i)
+  model = lm(Mass~Cover + 0, data = data.i)
   
   adjRsquared=summary(model)$adj.r.squared
   pvalue=summary(model)$coefficients[1,4]
   
   # predicts + interval
-  NewMass <- seq(min(data.i$Mass), max(data.i$Mass))
-  newdata = data.frame(Mass=NewMass)
+  NewCover <- seq(min(data.i$Cover), max(data.i$Cover), length.out = length(data.i[,1]))
+  newdata = data.frame(Cover=NewCover)
   Preds <- predict(model, newdata, interval = 'confidence')
   
   #plot
-  plot(data.i$Cover ~ data.i$Mass, main = growthform.i, xlab = "Mass", ylab = "Cover")
+  plot(data.i$Mass ~ data.i$Cover, main = growthform.i, xlab = "Cover", ylab = "Mass")
   
   # add fill
-  polygon(c(rev(NewMass), NewMass), c(rev(Preds[ ,3]), Preds[ ,2]), col = 'grey80', border = NA)
+  polygon(c(NewCover, rev(NewCover)), c(Preds[ ,2], rev(Preds[ ,3])), col = 'grey80', border = NA)
   # model
   abline(model)
   #data points
-  points(data.i$Mass, data.i$Cover, pch = 16 )
+  points(data.i$Cover, data.i$Mass, pch = 16 )
   # intervals
-  lines(NewMass, Preds[ ,3], lty = 'dashed', col = 'red')
-  lines(NewMass, Preds[ ,2], lty = 'dashed', col = 'red')
+  lines(NewCover, Preds[ ,3], lty = 'dashed', col = 'red')
+  lines(NewCover, Preds[ ,2], lty = 'dashed', col = 'red')
   #legend
   rp = vector('expression',2)
   rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
@@ -332,4 +368,50 @@ for (i in 1:N){
 dev.off()
 
 
+
+#LitGF
+growthform = as.vector(unique(CoverByLitGF$BGF))
+N = length(growthform)
+
+pdf("c:/Users/Rocha Lab/Desktop/Kelsey/CoverMassModels_LitGF.pdf")
+
+
+for (i in 1:N){
+  
+  growthform.i = growthform[i]
+  data.i = subset(CoverByLitGF, BGF == growthform.i)
+  
+  model = lm(Mass~Cover + 0, data = data.i)
+  
+  adjRsquared=summary(model)$adj.r.squared
+  pvalue=summary(model)$coefficients[1,4]
+  
+  # predicts + interval
+  NewCover <- seq(min(data.i$Cover), max(data.i$Cover), length.out = length(data.i[,1]))
+  newdata = data.frame(Cover=NewCover)
+  Preds <- predict(model, newdata, interval = 'confidence')
+  
+  #plot
+  plot(data.i$Mass ~ data.i$Cover, main = growthform.i, xlab = "Cover", ylab = "Mass")
+  
+  # add fill
+  polygon(c(NewCover, rev(NewCover)), c(Preds[ ,2], rev(Preds[ ,3])), col = 'grey80', border = NA)
+  # model
+  abline(model)
+  #data points
+  points(data.i$Cover, data.i$Mass, pch = 16 )
+  # intervals
+  lines(NewCover, Preds[ ,3], lty = 'dashed', col = 'red')
+  lines(NewCover, Preds[ ,2], lty = 'dashed', col = 'red')
+  #legend
+  rp = vector('expression',2)
+  rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
+                     list(MYVALUE = format(adjRsquared,dig=2)))[2]
+  rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
+                     list(MYOTHERVALUE = format(pvalue, digits = 2)))[2]
+  legend('topleft', legend = rp, bty = 'n')
+  
+}
+
+dev.off()
 
