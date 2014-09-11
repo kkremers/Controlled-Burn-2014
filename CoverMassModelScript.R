@@ -201,10 +201,10 @@ for (i in 1:N){
   growthform.i = growthform[i]
   data.i = subset(CoverByNGF, NGF == growthform.i)
   
-  model = lm(Cover ~ Mass, data = data.i)
+  model = lm(Cover ~ Mass + 0, data = data.i)
   
   adjRsquared=summary(model)$adj.r.squared
-  pvalue=summary(model)$coefficients[2,4]
+  pvalue=summary(model)$coefficients[1,4]
   
   # predicts + interval
   NewMass <- seq(min(data.i$Mass), max(data.i$Mass))
@@ -249,10 +249,10 @@ for (i in 1:N){
   growthform.i = growthform[i]
   data.i = subset(CoverByBGF1, BGF == growthform.i)
   
-  model = lm(Cover ~ Mass, data = data.i)
+  model = lm(Cover ~ Mass + 0, data = data.i)
   
   adjRsquared=summary(model)$adj.r.squared
-  pvalue=summary(model)$coefficients[2,4]
+  pvalue=summary(model)$coefficients[1,4]
   
   # predicts + interval
   NewMass <- seq(min(data.i$Mass), max(data.i$Mass))
@@ -297,10 +297,10 @@ for (i in 1:N){
   growthform.i = growthform[i]
   data.i = subset(CoverByBGF2, BGF == growthform.i)
   
-  model = lm(Cover ~ Mass, data = data.i)
+  model = lm(Cover ~ Mass + 0, data = data.i)
   
   adjRsquared=summary(model)$adj.r.squared
-  pvalue=summary(model)$coefficients[2,4]
+  pvalue=summary(model)$coefficients[1,4]
   
   # predicts + interval
   NewMass <- seq(min(data.i$Mass), max(data.i$Mass))
