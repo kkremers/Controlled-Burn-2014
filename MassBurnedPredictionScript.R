@@ -151,18 +151,94 @@ head(after)
 #now we want to make tables that have the total mass before and after for each growth form
 #we should  be able to use tapply for this
 
-before.sums = as.vector(tapply(before$MassPred, before$BroGF, sum))
-after.sums = as.vector(tapply(after$MassPred, after$BroGF, sum))[3:7] #have brackets there because items 1 and 2 were NA because they corresponded to "Ash" and "Bare Ground". Not sure why these aren't removed when I remove the NAs above...
+before.sums= data.frame(tapply(before$MassPred, list(before$BroGF, before$Plot), sum))
+after.sums = data.frame(tapply(after$MassPred, list(after$BroGF, after$Plot), sum))[3:7,] 
+Mass.before = apply(before.sums[-2,], 2, sum) #mass before by plot
+Mass.after = apply(after.sums[-2,], 2, sum) #mass after by plot
+se = function(x) {sd(x)/sqrt(length(x))} #define function for standard error calculation
+
 GrowthForm = c("Bryophyte", "Forb", "Graminoid", "Litter", "Shrub")
-MassBurn = data.frame(GrowthForm, before.sums, after.sums)
-colnames(MassBurn) = c("BroGF", "MassBefore", "MassAfter")
-MassBurn #these masses are in units of g / area burned, where area burned = 0.2m2 ; need to convert to m2
+DiffPlot1 = before.sums$X1 - after.sums$X1
+DiffPlot2 = before.sums$X2 - after.sums$X2
+DiffPlot3 = before.sums$X3 - after.sums$X3
+DiffPlot4 = before.sums$X4 - after.sums$X4
+DiffPlot5 = before.sums$X5 - after.sums$X5
+DiffPlot6 = before.sums$X6 - after.sums$X6
+DiffPlot7 = before.sums$X7 - after.sums$X7
+DiffPlot8 = before.sums$X8 - after.sums$X8
+DiffPlot9 = before.sums$X9 - after.sums$X9
+DiffPlot10 = before.sums$X10 - after.sums$X10
+MassBurn = data.frame(GrowthForm, DiffPlot1, DiffPlot2, DiffPlot3, DiffPlot4, DiffPlot5, DiffPlot6, DiffPlot7, DiffPlot8, DiffPlot9, DiffPlot10)
+MassBurn #these masses are in units of g / m2
 
-MassDiff = MassBurn$MassBefore - MassBurn$MassAfter
-Estimate = 0.5*sum(MassDiff)
+#Calculate mean and SE mass burned by growth form
+MeanBurnGF = apply(MassBurn[,2:11], 1, mean)
+SEBurnGF = apply(MassBurn[,2:11], 1, se)
+Mass.lostGF = data.frame(GF, MeanBurnGF, SEBurnGF)
+Mass.lostGF
+
+#Calculate mean and SE Carbon burned by growth form
+CarbonBurn = MassBurn[,2:11] * 0.5
+MeanCBurnGF= apply(CarbonBurn, 1, mean)
+SECBurnGF= apply(CarbonBurn, 1, se)
+C.lostGF = data.frame(GF, MeanCBurnGF, SECBurnGF)
+C.lostGF
+
+
+#calculate mean and SE of Carbon before and after fire & put in table for boxplots
+Means.C = c(mean(Mass.before*0.5), mean(Mass.after*0.5))
+SE.C = c(se(Mass.before*0.5), se(Mass.after*0.5))
+Time = c("Before", "After")
+C.lost = data.frame(Time, Means.C, SE.C)
+C.lost
+
+#calculate mean and SE of Mass before and after fire & put in table for boxplots
+Means.mass = c(mean(Mass.before), mean(Mass.after))
+SE.mass = c(se(Mass.before), se(Mass.after))
+Mass.lost = data.frame(Time, Means.mass, SE.mass)
+Mass.lost
 
 
 
+#Summary tables
+Burned.summary = data.frame(Mass.lost, C.lost[,-1])
+BurnedGF.summary = data.frame(Mass.lostGF, C.lostGF[,-1])
+Burned.summary
+BurnedGF.summary
 
 
+
+#Now we want to do boxplots
+#First need to create data tables for boxplots
+
+plots = rep(c(1,2,3,4,5,6,7,8,9,10), c(4,4,4,4,4,4,4,4,4,4))
+growthform = rep(c("Bryophyte", "Graminoid", "Litter", "Shrub"), 10)
+
+massburned = c(MassBurn[,2], MassBurn[,3], MassBurn[,4], MassBurn[,5], MassBurn[,6], MassBurn[,7], MassBurn[,8], MassBurn[,9], MassBurn[,10], MassBurn[,11])
+MassBurnGF.plots = data.frame(growthform, plots, massburned)
+MassBurnGF.plots
+
+time = rep(c("1", "2"), c(10,10))
+Mass = c(as.vector(Mass.before), as.vector(Mass.after))
+MassBurn.plots = data.frame(time, Mass)
+
+before.sums = before.sums[-2,]
+after.sums = after.sums[-2,]
+massburnGF = c(before.sums[,1], before.sums[,2], before.sums[,3], before.sums[,4], before.sums[,5], before.sums[,6], before.sums[,7], before.sums[,8], before.sums[,9], before.sums[,10],
+               after.sums[,1], after.sums[,2], after.sums[,3], after.sums[,4], after.sums[,5], after.sums[,6], after.sums[,7], after.sums[,8], after.sums[,9], after.sums[,10])
+time2 = rep(c("1", "2"), c(40, 40))
+growthform2 = rep(c("Bryophyte", "Graminoid", "Litter", "Shrub"), 20)
+MassBurnGFTime = data.frame(time2, growthform2, massburnGF)
+
+#now we can make plots
+boxplot(massburnGF~time2*growthform2, data=MassBurnGFTime, col=c("darkolivegreen1", "springgreen4"),
+        names=c("Bryophyte", "Bryophyte", "Graminoid", "Graminoid", "Litter", "Litter", "Shrub", "Shrub"),
+        xlab = "Growth Forms Pre- & Post-burn", ylab = "Biomass g/m2" )
+legend("topright", # places a legend at the appropriate place 
+       c("Pre-burn","Post-burn"), # puts text in the legend 
+       pch = 15, bty= "n", cex=1.25,
+       col=c("darkolivegreen1","springgreen4")) # gives the legend lines the correct color and width
+
+boxplot(Mass~time, data=MassBurn.plots, names=c("Pre-burn", "Post-burn"), col=c("darkolivegreen1", "springgreen4"),
+        ylab = "Biomass g/m2")
 

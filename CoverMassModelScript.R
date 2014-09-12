@@ -286,6 +286,7 @@ for (i in 1:N){
   data.i = subset(CoverByBGF1, BGF == growthform.i)
   
   model = lm(Mass~Cover + 0, data = data.i)
+  model.res = resid(model) #calculate residuals
   
   adjRsquared=summary(model)$adj.r.squared
   pvalue=summary(model)$coefficients[1,4]
@@ -314,6 +315,10 @@ for (i in 1:N){
   rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
                      list(MYOTHERVALUE = format(pvalue, digits = 2)))[2]
   legend('topleft', legend = rp, bty = 'n')
+  
+  #plot residuals
+  plot(data.i$Cover, model.res, ylab="Residuals", xlab="Cover", main=growthform.i, pch = 16)
+  abline(0,0)
   
 }
 
