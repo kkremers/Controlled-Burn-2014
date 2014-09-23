@@ -16,8 +16,8 @@ BroGF1 = rep(NA, length(before$Spp)) #create empty vector for GF information to 
 BroGF2 = rep(NA, length(after$Spp)) #create empty vector for GF information to go in
 before = data.frame(before, BroGF = BroGF1) #add empty column to existing dat table to fill in with broad growth form 
 after = data.frame(after, BroGF=BroGF2) #add empty column to existing dat table to fill in with broad growth form 
-before$BroGF <- class$BroadGF[match(before$Spp, class$Species)] #add GF values to table by matching the SppStat column
-after$BroGF <- class$BroadGF[match(after$Spp, class$Species)] #add GF values to table by matching the SppStat column
+before$BroGF <- class$BroadGF1[match(before$Spp, class$Species)] #add GF values to table by matching the SppStat column
+after$BroGF <- class$BroadGF1[match(after$Spp, class$Species)] #add GF values to table by matching the SppStat column
 #the above works like vlookup in excel
 
 GFPlot1 = paste(before$BroGF, before$Plot, sep="") #create a concantenated column of growth form and plot
@@ -55,9 +55,9 @@ numpts.after = data.frame(numpts.after)
 colnames(numpts.after) = c("Plot", "NumPts")
 
 #processing of before data: calculate cover for each species in each plot
-counts1 = as.data.frame(table(before$GFPlot)) #count number of times each species occurs for each plot (this is why we made that new column)
-GF1=rep(c("Bryophyte", "Forb", "Graminoid", "Litter", "Shrub"), c(10,3,10,10,10)) #vector of growth forms
-Plot1=c(1,10,2,3,4,5,6,7, 8, 9, 1,4,6,1,10,2,3,4,5,6,7, 8, 9,1,10,2,3,4,5,6,7, 8, 9,1,10,2,3,4,5,6,7, 8, 9)#vector of plot numbers
+counts1 = as.data.frame(table(before$GFPlot1)) #count number of times each species occurs for each plot (this is why we made that new column)
+GF1=rep(c("Bryophyte", "Deciduous", "Evergreen", "Forb", "Graminoid", "Litter"), c(10,10,10,3,10,10)) #vector of growth forms
+Plot1=c(1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8,9, 1,4,6, 1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8,9)#vector of plot numbers
 before = data.frame(Plot1, GF1, counts1[,2]) #make new dataframe with wanted data
 colnames(before) = c("Plot", "BroGF", "Count") #change column names
 head(before)
@@ -71,9 +71,9 @@ head(before)
 
 
 #repeat above steps for "after" data
-counts2 = as.data.frame(table(after$GFPlot)) #count number of times each species occurs for each plot (this is why we made that new column)
-GF2=rep(c("Ash", "Bare Ground", "Bryophyte", "Forb", "Graminoid", "Litter", "Shrub"), c(6,3,10,2,10,10,10)) #vector of growth forms
-Plot2=c(1,4,5,7,8,9,4,7,9,1,10,2,3,4,5,6,7, 8, 9, 1,5,1,10,2,3,4,5,6,7, 8, 9,1,10,2,3,4,5,6,7, 8, 9,1,10,2,3,4,5,6,7, 8, 9)#vector of plot numbers
+counts2 = as.data.frame(table(after$GFPlot2)) #count number of times each species occurs for each plot (this is why we made that new column)
+GF2=rep(c("Ash", "Bare Ground", "Bryophyte", "Deciduous", "Evergreen", "Forb", "Graminoid", "Litter"), c(6,3,10,9,10,2,10,10)) #vector of growth forms
+Plot2=c(1,4,5,7,8,9, 4,7,9, 1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8, 1,10,2,3,4,5,6,7,8,9, 1,5, 1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8,9)#vector of plot numbers
 after = data.frame(Plot2, GF2, counts2[,2]) #make new dataframe with wanted data
 colnames(after) = c("Plot", "BroGF", "Count") #change column names
 head(after)
@@ -106,7 +106,10 @@ head(after)
 #next we will fill in the new columns with model predictions based on growthform
 
 for(i in 1:length(before$BroGF)) {
-  if(before[i,2] == "Shrub") {
+  if(before[i,2] == "Deciduous") {
+    before$MassPred[i] = Params[1,2]*before$Cover[i] 
+  }
+  if(before[i,2] == "Evergreen") {
     before$MassPred[i] = Params[1,2]*before$Cover[i] 
   }
   if(before[i,2] == "Forb") {
@@ -124,7 +127,10 @@ for(i in 1:length(before$BroGF)) {
 }
 
 for(i in 1:length(after$BroGF)) {
-  if(after[i,2] == "Shrub") {
+  if(after[i,2] == "Deciduous") {
+    after$MassPred[i] = Params[1,2]*after$Cover[i] 
+  }
+  if(after[i,2] == "Evergreen") {
     after$MassPred[i] = Params[1,2]*after$Cover[i] 
   }
   if(after[i,2] == "Forb") {
@@ -152,12 +158,16 @@ head(after)
 #we should  be able to use tapply for this
 
 before.sums= data.frame(tapply(before$MassPred, list(before$BroGF, before$Plot), sum))
-after.sums = data.frame(tapply(after$MassPred, list(after$BroGF, after$Plot), sum))[3:7,] 
-Mass.before = apply(before.sums[-2,], 2, sum) #mass before by plot
-Mass.after = apply(after.sums[-2,], 2, sum) #mass after by plot
-se = function(x) {sd(x)/sqrt(length(x))} #define function for standard error calculation
+after.sums = data.frame(tapply(after$MassPred, list(after$BroGF, after$Plot), sum))[3:8,] 
+after.sums[2,9] = 0
+before.sums = before.sums[-4,]
+after.sums = after.sums[-4,]
+Mass.before = apply(before.sums, 2, sum, na.rm = TRUE) #mass before by plot
+Mass.after = apply(after.sums, 2, sum, na.rm = TRUE) #mass after by plot
+#define function for standard error calculation
+se<-function (x){ sd(x)/sqrt(length(x))} 
 
-GrowthForm = c("Bryophyte", "Forb", "Graminoid", "Litter", "Shrub")
+GrowthForm = c("Bryophyte", "Deciduous", "Evergreen", "Graminoid", "Litter")
 DiffPlot1 = before.sums$X1 - after.sums$X1
 DiffPlot2 = before.sums$X2 - after.sums$X2
 DiffPlot3 = before.sums$X3 - after.sums$X3
@@ -174,14 +184,14 @@ MassBurn #these masses are in units of g / m2
 #Calculate mean and SE mass burned by growth form
 MeanBurnGF = apply(MassBurn[,2:11], 1, mean)
 SEBurnGF = apply(MassBurn[,2:11], 1, se)
-Mass.lostGF = data.frame(GF, MeanBurnGF, SEBurnGF)
+Mass.lostGF = data.frame(GrowthForm, MeanBurnGF, SEBurnGF)
 Mass.lostGF
 
 #Calculate mean and SE Carbon burned by growth form
 CarbonBurn = MassBurn[,2:11] * 0.5
 MeanCBurnGF= apply(CarbonBurn, 1, mean)
 SECBurnGF= apply(CarbonBurn, 1, se)
-C.lostGF = data.frame(GF, MeanCBurnGF, SECBurnGF)
+C.lostGF = data.frame(GrowthForm, MeanCBurnGF, SECBurnGF)
 C.lostGF
 
 
@@ -211,10 +221,11 @@ BurnedGF.summary
 #Now we want to do boxplots
 #First need to create data tables for boxplots
 
-plots = rep(c(1,2,3,4,5,6,7,8,9,10), c(4,4,4,4,4,4,4,4,4,4))
-growthform = rep(c("Bryophyte", "Graminoid", "Litter", "Shrub"), 10)
+plots = rep(c(1,2,3,4,5,6,7,8,9,10), c(5,5,5,5,5,5,5,5,5,5))
+growthform = rep(c("Bryophyte", "Deciduous", "Evergreen", "Graminoid", "Litter"), 10)
 
-massburned = c(MassBurn[,2], MassBurn[,3], MassBurn[,4], MassBurn[,5], MassBurn[,6], MassBurn[,7], MassBurn[,8], MassBurn[,9], MassBurn[,10], MassBurn[,11])
+massburned = c(MassBurn[,2], MassBurn[,3], MassBurn[,4], MassBurn[,5], MassBurn[,6], MassBurn[,7],
+               MassBurn[,8], MassBurn[,9], MassBurn[,10], MassBurn[,11])
 MassBurnGF.plots = data.frame(growthform, plots, massburned)
 MassBurnGF.plots
 
@@ -222,17 +233,16 @@ time = rep(c("1", "2"), c(10,10))
 Mass = c(as.vector(Mass.before), as.vector(Mass.after))
 MassBurn.plots = data.frame(time, Mass)
 
-before.sums = before.sums[-2,]
-after.sums = after.sums[-2,]
+
 massburnGF = c(before.sums[,1], before.sums[,2], before.sums[,3], before.sums[,4], before.sums[,5], before.sums[,6], before.sums[,7], before.sums[,8], before.sums[,9], before.sums[,10],
                after.sums[,1], after.sums[,2], after.sums[,3], after.sums[,4], after.sums[,5], after.sums[,6], after.sums[,7], after.sums[,8], after.sums[,9], after.sums[,10])
-time2 = rep(c("1", "2"), c(40, 40))
-growthform2 = rep(c("Bryophyte", "Graminoid", "Litter", "Shrub"), 20)
+time2 = rep(c("1", "2"), c(50, 50))
+growthform2 = rep(c("Bryophyte", "Deciduous", "Evergreen", "Graminoid", "Litter"), 20)
 MassBurnGFTime = data.frame(time2, growthform2, massburnGF)
 
 #now we can make plots
 boxplot(massburnGF~time2*growthform2, data=MassBurnGFTime, col=c("darkolivegreen1", "springgreen4"),
-        names=c("Bryophyte", "Bryophyte", "Graminoid", "Graminoid", "Litter", "Litter", "Shrub", "Shrub"),
+        names=c("Bryophyte", "Bryophyte", "Deciduous", "Deciduous", "Evergreen", "Evergreen", "Graminoid", "Graminoid", "Litter", "Litter"),
         xlab = "Growth Forms Pre- & Post-burn", ylab = "Biomass g/m2" )
 legend("topright", # places a legend at the appropriate place 
        c("Pre-burn","Post-burn"), # puts text in the legend 
