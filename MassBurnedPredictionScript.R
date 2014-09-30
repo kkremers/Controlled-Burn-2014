@@ -20,11 +20,14 @@ before$BroGF <- class$BroadGF1[match(before$Spp, class$Species)] #add GF values 
 after$BroGF <- class$BroadGF1[match(after$Spp, class$Species)] #add GF values to table by matching the SppStat column
 #the above works like vlookup in excel
 
-GFPlot1 = paste(before$BroGF, before$Plot, sep="") #create a concantenated column of growth form and plot
-GFPlot2 = paste(after$BroGF, after$Plot, sep="")
-before = data.frame(before, GFPlot1) #add new vector as column to dataframe
-after = data.frame(after, GFPlot2)
-
+GFPlot1 = paste(before$BroGF, before$Plot, sep="_") #create a concantenated column of growth form and plot
+GFPlot2 = paste(after$BroGF, after$Plot, sep="_")
+before = data.frame(before, GFPlot = GFPlot1) #add new vector as column to dataframe
+after = data.frame(after, GFPlot = GFPlot2)
+GFPlotStat1 = paste(before$GFPlot, before$Stat, sep="_")
+GFPlotStat2 = paste(after$GFPlot, after$Stat, sep="_")
+before = data.frame(before, GFPlotStat = GFPlotStat1) #add new vector as column to dataframe
+after = data.frame(after, GFPlotStat = GFPlotStat2)
 head(before)
 head(after)
 
@@ -54,12 +57,11 @@ for (i in 1:10) {
 numpts.after = data.frame(numpts.after)
 colnames(numpts.after) = c("Plot", "NumPts")
 
-#processing of before data: calculate cover for each species in each plot
-counts1 = as.data.frame(table(before$GFPlot1)) #count number of times each species occurs for each plot (this is why we made that new column)
-GF1=rep(c("Bryophyte", "Deciduous", "Evergreen", "Forb", "Graminoid", "Litter"), c(10,10,10,3,10,10)) #vector of growth forms
-Plot1=c(1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8,9, 1,4,6, 1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8,9)#vector of plot numbers
-before = data.frame(Plot1, GF1, counts1[,2]) #make new dataframe with wanted data
-colnames(before) = c("Plot", "BroGF", "Count") #change column names
+#processing of before data: calculate cover for each species at each status in each plot
+counts1 = as.data.frame(table(before$GFPlotStat)) #count number of times each species occurs for each plot (this is why we made that new column)
+splits = data.frame(do.call(rbind, strsplit(as.vector(counts1$Var1), split = "_")))
+before = data.frame(splits, counts1) #make new dataframe with wanted data
+colnames(before) = c("BroGF", "Plot", "Stat", "GFPlotStat", "Count")
 head(before)
 NumPts = rep(NA, length(before$BroGF)) #create empty vector for information to go in
 before = data.frame(before, NumPts = NumPts) #add empty column to existing dat table to fill in with numper of points in that plot
@@ -71,11 +73,10 @@ head(before)
 
 
 #repeat above steps for "after" data
-counts2 = as.data.frame(table(after$GFPlot2)) #count number of times each species occurs for each plot (this is why we made that new column)
-GF2=rep(c("Ash", "Bare Ground", "Bryophyte", "Deciduous", "Evergreen", "Forb", "Graminoid", "Litter"), c(6,3,10,9,10,2,10,10)) #vector of growth forms
-Plot2=c(1,4,5,7,8,9, 4,7,9, 1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8, 1,10,2,3,4,5,6,7,8,9, 1,5, 1,10,2,3,4,5,6,7,8,9, 1,10,2,3,4,5,6,7,8,9)#vector of plot numbers
-after = data.frame(Plot2, GF2, counts2[,2]) #make new dataframe with wanted data
-colnames(after) = c("Plot", "BroGF", "Count") #change column names
+counts2 = as.data.frame(table(after$GFPlotStat)) #count number of times each species occurs for each plot (this is why we made that new column)
+splits = data.frame(do.call(rbind, strsplit(as.vector(counts2$Var1), split = "_")))
+after = data.frame(splits, counts2) #make new dataframe with wanted data
+colnames(after) = c("BroGF", "Plot", "Stat", "GFPlotStat", "Count")
 head(after)
 NumPts = rep(NA, length(after$BroGF)) #create empty vector for information to go in
 after = data.frame(after, NumPts = NumPts) #add empty column to existing dat table to fill in with numper of points in that plot
@@ -84,7 +85,6 @@ Cover2 = rep(NA, length(after$BroGF)) #create empty vector for information to go
 after = data.frame(after, Cover = Cover2)
 after$Cover = after$Count/after$NumPts
 head(after)
-
 
 #Now we want to predict mass based on the linear relationships we developed 
 #script for linear relationships is called "CoverMassModelScript" and is part of this R project
@@ -106,53 +106,57 @@ head(after)
 #next we will fill in the new columns with model predictions based on growthform
 
 for(i in 1:length(before$BroGF)) {
-  if(before[i,2] == "Deciduous") {
+  if(before[i,1] == "DECI") {
     before$MassPred[i] = Params[1,2]*before$Cover[i] 
   }
-  if(before[i,2] == "Evergreen") {
+  if(before[i,1] == "EVER") {
     before$MassPred[i] = Params[1,2]*before$Cover[i] 
   }
-  if(before[i,2] == "Forb") {
+  if(before[i,1] == "FORB") {
     before$MassPred[i] = Params[2,2]*before$Cover[i] 
   }
-  if(before[i,2] == "Graminoid") {
+  if(before[i,1] == "GRAM") {
     before$MassPred[i] = Params[3,2]*before$Cover[i] 
   }
-  if(before[i,2] == "Bryophyte") {
+  if(before[i,1] == "BRYO") {
     before$MassPred[i] = Params[4,2]*before$Cover[i] 
   }
-  if(before[i,2] == "Litter") {
+  if(before[i,1] == "LITT") {
     before$MassPred[i] = Params[4,2]*before$Cover[i] 
   }
 }
+
+head(before)
 
 for(i in 1:length(after$BroGF)) {
-  if(after[i,2] == "Deciduous") {
+  if(after[i,1] == "DECI") {
     after$MassPred[i] = Params[1,2]*after$Cover[i] 
   }
-  if(after[i,2] == "Evergreen") {
+  if(after[i,1] == "EVER") {
     after$MassPred[i] = Params[1,2]*after$Cover[i] 
   }
-  if(after[i,2] == "Forb") {
+  if(after[i,1] == "FORB") {
     after$MassPred[i] = Params[2,2]*after$Cover[i] 
   }
-  if(after[i,2] == "Graminoid") {
+  if(after[i,1] == "GRAM") {
     after$MassPred[i] = Params[3,2]*after$Cover[i] 
   }
-  if(after[i,2] == "Bryophyte") {
+  if(after[i,1] == "BRYO") {
     after$MassPred[i] = Params[4,2]*after$Cover[i] 
   }
-  if(after[i,2] == "Litter") {
+  if(after[i,1] == "LITT") {
     after$MassPred[i] = Params[4,2]*after$Cover[i] 
   }
 }
 
-#check outputs
-head(before)
-head(after) #some variables may be NA if they were not predicted (i.e, points that were just ash)
+head(after)
 
+#output tables
+write.csv(before, "c:/Users/Rocha Lab/Desktop/Kelsey/CB_CoverBefore.csv")
+head(after) #some variables may be NA if they were not predicted (i.e, points that were just ash)
 after = after[complete.cases(after),] #remove rows with NAs (this is only the "ash" rows)
 head(after)
+write.csv(after, "c:/Users/Rocha Lab/Desktop/Kelsey/CB_CoverAfter.csv")
 
 #now we want to make tables that have the total mass before and after for each growth form
 #we should  be able to use tapply for this
@@ -180,6 +184,9 @@ DiffPlot9 = before.sums$X9 - after.sums$X9
 DiffPlot10 = before.sums$X10 - after.sums$X10
 MassBurn = data.frame(GrowthForm, DiffPlot1, DiffPlot2, DiffPlot3, DiffPlot4, DiffPlot5, DiffPlot6, DiffPlot7, DiffPlot8, DiffPlot9, DiffPlot10)
 MassBurn #these masses are in units of g / m2
+MassBurn1 = t(MassBurn)
+write.csv(MassBurn1, "c:/Users/Rocha Lab/Desktop/Kelsey/CB_MassBurnedbyGF.csv")
+
 
 #Calculate mean and SE mass burned by growth form
 MeanBurnGF = apply(MassBurn[,2:11], 1, mean)
