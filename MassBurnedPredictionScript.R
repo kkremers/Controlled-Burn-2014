@@ -2,6 +2,8 @@
 
 ############predicting mass burned using models#############
 
+
+
 before=read.csv(file=file.choose()) #load cover data for pre-burn
 after=read.csv(file=file.choose()) #load cover data for post-burn
 
@@ -150,112 +152,135 @@ for(i in 1:length(after$BroGF)) {
 }
 
 head(after)
+after = after[10:length(after[,1]),] #removes the NAs
 
 #output tables
 write.csv(before, "c:/Users/Rocha Lab/Desktop/Kelsey/CB_CoverBefore.csv")
-head(after) #some variables may be NA if they were not predicted (i.e, points that were just ash)
-after = after[complete.cases(after),] #remove rows with NAs (this is only the "ash" rows)
-head(after)
 write.csv(after, "c:/Users/Rocha Lab/Desktop/Kelsey/CB_CoverAfter.csv")
 
 #now we want to make tables that have the total mass before and after for each growth form
 #we should  be able to use tapply for this
 
-before.sums= data.frame(tapply(before$MassPred, list(before$BroGF, before$Plot), sum))
-after.sums = data.frame(tapply(after$MassPred, list(after$BroGF, after$Plot), sum))[3:8,] 
-after.sums[2,9] = 0
-before.sums = before.sums[-4,]
-after.sums = after.sums[-4,]
-Mass.before = apply(before.sums, 2, sum, na.rm = TRUE) #mass before by plot
-Mass.after = apply(after.sums, 2, sum, na.rm = TRUE) #mass after by plot
-#define function for standard error calculation
-se<-function (x){ sd(x)/sqrt(length(x))} 
+before.sums= as.vector(tapply(before$MassPred, before$GFPlotStat, sum))
+after.sums = as.vector(tapply(after$MassPred, after$GFPlotStat, sum))
+after.sums = data.frame(GFPlotStat = after$GFPlotStat, Mass.after = after.sums[10:80])
+Mass.after = rep(NA, length(before.sums))
+Mass.sums = data.frame(GFPlotStat = before$GFPlotStat, Mass.before = before.sums, Mass.after = Mass.after)
+Mass.sums$Mass.after <- after.sums$Mass.after[match(Mass.sums$GFPlotStat, after.sums$GFPlotStat)]
+Mass.sums[is.na(Mass.sums)] = 0
+Mass.sums
+Mass.diff = rep(NA, length(Mass.sums[,1]))
+Mass.sums = data.frame(Mass.sums, Mass.diff)
+Mass.sums$Mass.diff = Mass.sums$Mass.before-Mass.sums$Mass.after
+Mass.sums
 
-GrowthForm = c("Bryophyte", "Deciduous", "Evergreen", "Graminoid", "Litter")
-DiffPlot1 = before.sums$X1 - after.sums$X1
-DiffPlot2 = before.sums$X2 - after.sums$X2
-DiffPlot3 = before.sums$X3 - after.sums$X3
-DiffPlot4 = before.sums$X4 - after.sums$X4
-DiffPlot5 = before.sums$X5 - after.sums$X5
-DiffPlot6 = before.sums$X6 - after.sums$X6
-DiffPlot7 = before.sums$X7 - after.sums$X7
-DiffPlot8 = before.sums$X8 - after.sums$X8
-DiffPlot9 = before.sums$X9 - after.sums$X9
-DiffPlot10 = before.sums$X10 - after.sums$X10
-MassBurn = data.frame(GrowthForm, DiffPlot1, DiffPlot2, DiffPlot3, DiffPlot4, DiffPlot5, DiffPlot6, DiffPlot7, DiffPlot8, DiffPlot9, DiffPlot10)
-MassBurn #these masses are in units of g / m2
-MassBurn1 = t(MassBurn)
-write.csv(MassBurn1, "c:/Users/Rocha Lab/Desktop/Kelsey/CB_MassBurnedbyGF.csv")
+for(i in 1:length(Mass.sums$Mass.diff)){
+  if(Mass.sums$Mass.diff[i] < 0){
+    Mass.sums$Mass.diff[i] = NA
+  } 
+}
+
+Mass.sums
+Mass.sums = Mass.sums[complete.cases(Mass.sums),]
+write.csv(Mass.sums, "c:/Users/Rocha Lab/Desktop/Kelsey/CB_MassBurnedbyGF.csv")
 
 
-#Calculate mean and SE mass burned by growth form
-MeanBurnGF = apply(MassBurn[,2:11], 1, mean)
-SEBurnGF = apply(MassBurn[,2:11], 1, se)
-Mass.lostGF = data.frame(GrowthForm, MeanBurnGF, SEBurnGF)
-Mass.lostGF
-
-#Calculate mean and SE Carbon burned by growth form
-CarbonBurn = MassBurn[,2:11] * 0.5
-MeanCBurnGF= apply(CarbonBurn, 1, mean)
-SECBurnGF= apply(CarbonBurn, 1, se)
-C.lostGF = data.frame(GrowthForm, MeanCBurnGF, SECBurnGF)
-C.lostGF
-
-
-#calculate mean and SE of Carbon before and after fire & put in table for boxplots
-Means.C = c(mean(Mass.before*0.5), mean(Mass.after*0.5))
-SE.C = c(se(Mass.before*0.5), se(Mass.after*0.5))
-Time = c("Before", "After")
-C.lost = data.frame(Time, Means.C, SE.C)
-C.lost
-
-#calculate mean and SE of Mass before and after fire & put in table for boxplots
-Means.mass = c(mean(Mass.before), mean(Mass.after))
-SE.mass = c(se(Mass.before), se(Mass.after))
-Mass.lost = data.frame(Time, Means.mass, SE.mass)
-Mass.lost
+#split up GFPlotStat column
+groups = unlist(strsplit(as.character(Mass.sums$GFPlotStat), "_"))
+cols = matrix(groups, ncol = 3, byrow=TRUE)
+GF = as.vector(cols[,1])
+Plot = as.vector(as.numeric(cols[,2]))
+Stat = as.vector(cols[,3])
+GFStat = paste(GF, Stat, sep="_")
+Mass.sums = data.frame(GFPlotStat = Mass.sums$GFPlotStat, GFStat = GFStat, GF = GF, Plot=Plot, Stat=Stat, Mass.sums[,2:4])
 
 
 
-#Summary tables
-Burned.summary = data.frame(Mass.lost, C.lost[,-1])
-BurnedGF.summary = data.frame(Mass.lostGF, C.lostGF[,-1])
-Burned.summary
-BurnedGF.summary
+#Calculate mean and SE mass burned by growth form and status
+se<-function (x){ sd(x)/sqrt(length(x))} #define function for standard error calculation
+MeanBeforeGF = tapply(Mass.sums$Mass.before, Mass.sums$GFStat, mean)
+SEBeforeGF = tapply(Mass.sums$Mass.before, Mass.sums$GFStat, se)
+
+MeanAfterGF = tapply(Mass.sums$Mass.after, Mass.sums$GFStat, mean)
+SEAfterGF = tapply(Mass.sums$Mass.after, Mass.sums$GFStat, se)
+
+MeanDiffGF = tapply(Mass.sums$Mass.diff, Mass.sums$GFStat, mean)
+SEDiffGF = tapply(Mass.sums$Mass.diff, Mass.sums$GFStat, se)
+
+GrowthForm = c("BRYO_A", "DECI_A", "EVER_A", "EVER_D", "FORB_A", "GRAM_A", "GRAM_D", "LITT_D")
+MassGF = data.frame(GrowthForm, MassBef_mean = as.vector(MeanBeforeGF), 
+                    MassBef_SE = as.vector(SEBeforeGF), 
+                    MassAft_mean= as.vector(MeanAfterGF), 
+                    MassAft_SE = as.vector(SEAfterGF), 
+                    MassDiff_mean = as.vector(MeanDiffGF),
+                    MassDiff_SE = as.vector(SEDiffGF))
+MassGF
+
+#Calculate mean and SE Carbon burned by growth form and status
+C.sums = Mass.sums[,6:7]*0.5
+colnames(C.sums)=c("C.before", "C.after")
+C.diff=rep(NA, length(C.sums[,1]))
+C.sums = data.frame(Mass.sums[,1:5], C.sums, C.diff)
+C.sums$C.diff = C.sums$C.before-C.sums$C.after
+C.sums
+
+MeanBeforeGF_C = tapply(C.sums$C.before, C.sums$GFStat, mean)
+SEBeforeGF_C = tapply(C.sums$C.before, C.sums$GFStat, se)
+
+MeanAfterGF_C = tapply(C.sums$C.after, C.sums$GFStat, mean)
+SEAfterGF_C = tapply(C.sums$C.after, C.sums$GFStat, se)
+
+MeanDiffGF_C = tapply(C.sums$C.diff, C.sums$GFStat, mean)
+SEDiffGF_C = tapply(C.sums$C.diff, C.sums$GFStat, se)
 
 
+CGF = data.frame(GrowthForm, CBef_mean = as.vector(MeanBeforeGF_C), 
+                    CBef_SE = as.vector(SEBeforeGF_C), 
+                    CAft_mean= as.vector(MeanAfterGF_C), 
+                    CAft_SE = as.vector(SEAfterGF_C), 
+                    CDiff_mean = as.vector(MeanDiffGF_C),
+                    CDiff_SE = as.vector(SEDiffGF_C))
+
+SummaryGF = data.frame(MassGF, CGF[,2:7])
+
+write.csv(SummaryGF, "c:/Users/Rocha Lab/Desktop/Kelsey/CB_SummaryGF.csv")
+
+
+#calculate mean and SE of Mass before and after fire 
+MassBefore = tapply(Mass.sums$Mass.before, Mass.sums$Plot, sum)
+MassAfter = tapply(Mass.sums$Mass.after, Mass.sums$Plot, sum)
+CBefore = 0.5*MassBefore
+CAfter=0.5*MassAfter
+Plot = seq(1, 10, length=10)
+Summary = data.frame(Plot, MassBefore=as.vector(MassBefore), 
+                     MassAfter=as.vector(MassAfter),
+                     CBefore=as.vector(CBefore),
+                     CAfter=as.vector(CAfter))
+write.csv(Summary, "c:/Users/Rocha Lab/Desktop/Kelsey/CB_Summary.csv")
+
+Mean_MassBefore = mean(Summary$MassBefore)
+SE_MassBefore = se(Summary$MassBefore)
+Mean_MassAfter = mean(Summary$MassAfter)
+Se_MassAfter = se(Summary$MassAfter)
+Mean_CBefore = mean(Summary$CBefore)
+SE_CBefore = se(Summary$CBefore)
+Mean_CAfter = mean(Summary$CAfter)
+Se_CAfter = se(Summary$CAfter)
 
 #Now we want to do boxplots
-#First need to create data tables for boxplots
-
-plots = rep(c(1,2,3,4,5,6,7,8,9,10), c(5,5,5,5,5,5,5,5,5,5))
-growthform = rep(c("Bryophyte", "Deciduous", "Evergreen", "Graminoid", "Litter"), 10)
-
-massburned = c(MassBurn[,2], MassBurn[,3], MassBurn[,4], MassBurn[,5], MassBurn[,6], MassBurn[,7],
-               MassBurn[,8], MassBurn[,9], MassBurn[,10], MassBurn[,11])
-MassBurnGF.plots = data.frame(growthform, plots, massburned)
-MassBurnGF.plots
-
-time = rep(c("1", "2"), c(10,10))
-Mass = c(as.vector(Mass.before), as.vector(Mass.after))
-MassBurn.plots = data.frame(time, Mass)
-
-
-massburnGF = c(before.sums[,1], before.sums[,2], before.sums[,3], before.sums[,4], before.sums[,5], before.sums[,6], before.sums[,7], before.sums[,8], before.sums[,9], before.sums[,10],
-               after.sums[,1], after.sums[,2], after.sums[,3], after.sums[,4], after.sums[,5], after.sums[,6], after.sums[,7], after.sums[,8], after.sums[,9], after.sums[,10])
-time2 = rep(c("1", "2"), c(50, 50))
-growthform2 = rep(c("Bryophyte", "Deciduous", "Evergreen", "Graminoid", "Litter"), 20)
-MassBurnGFTime = data.frame(time2, growthform2, massburnGF)
 
 #now we can make plots
-boxplot(massburnGF~time2*growthform2, data=MassBurnGFTime, col=c("darkolivegreen1", "springgreen4"),
-        names=c("Bryophyte", "Bryophyte", "Deciduous", "Deciduous", "Evergreen", "Evergreen", "Graminoid", "Graminoid", "Litter", "Litter"),
-        xlab = "Growth Forms Pre- & Post-burn", ylab = "Biomass g/m2" )
-legend("topright", # places a legend at the appropriate place 
-       c("Pre-burn","Post-burn"), # puts text in the legend 
-       pch = 15, bty= "n", cex=1.25,
-       col=c("darkolivegreen1","springgreen4")) # gives the legend lines the correct color and width
+boxplot(Mass.diff~GFStat, data=Mass.sums, 
+        col="darkolivegreen1",
+        names=c("Bryophyte", "Deciduous Alive", "Evergreen Alive", "Evergreen Dead", 
+                "Forb Alive", "Graminoid Alive", "Graminoid Dead", "Litter"),
+        ylab = "Biomass Burned (g/m2)" )
 
-boxplot(Mass~time, data=MassBurn.plots, names=c("Pre-burn", "Post-burn"), col=c("darkolivegreen1", "springgreen4"),
+
+time=rep(c(1,2), c(10,10))
+Mass = c(MassBefore, MassAfter)
+MassTot = data.frame(time, Mass=as.vector(Mass))
+
+boxplot(Mass~time, data=MassTot, names=c("Pre-burn", "Post-burn"), col=c("darkolivegreen1", "springgreen4"),
         ylab = "Biomass g/m2")
 
